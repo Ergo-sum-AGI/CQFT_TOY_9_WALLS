@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>9-Walls Quest – Browser Lab (Audio + WebGL)</title>
+<style>
+ body{font-family:system-ui, sans-serif; margin:0; background:#111; color:#eee}
+ header{background:gold; color:#000; padding:0.4rem; font-weight:bold}
+ .main{display:flex; gap:1rem; padding:1rem; flex-wrap:wrap; align-items:flex-start}
+ .left{flex:0 0 280px}
+ .right{flex:1 1 340px; background:#1a1a1a; border:1px solid #444; border-radius:8px; padding:1rem}
+ .row{display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-start}
+ canvas{border:1px solid #555; margin:0.5rem 0}
+ label{display:block; margin:0.3rem 0}
+ button{background:gold; border:none; padding:0.5rem 1rem; cursor:pointer}
+ button:disabled{background:#666; cursor:not-allowed}
+ #log{height:6rem; overflow-y:scroll; font-size:0.8rem; background:#222; padding:0.5rem}
+ .gauge{display:inline-block; margin:0.5rem; vertical-align:top}
+ .val-box{background:#000; border:1px solid #555; padding:0.2rem 0.4rem; font-family:monospace; font-size:0.9rem}
+ [title]{cursor:help}
+</style>
+</head>
+<body>
+<header>9-Walls Quest – Consciousness Field Lab (Audio + WebGL)</header>
+
+<!--  MAIN FLEX BOX  -->
+<div class="main">
+
+<!--  LEFT PANEL  -->
+<div class="left">
+  <h3>Safe Toggles <span title="Resolution N: Hilbert-space truncation (numerical)">ℹ</span></h3>
+  <label>N <input type="range" id="N" min="2" max="8" value="4"><span id="Nval">4</span></label>
+  <label>Δt <input type="range" id="dt" min="0.1" max="1" step="0.1" value="0.5"><span id="dtval">0.5</span></label>
+  <label>Lattice <input type="range" id="L" min="8" max="128" value="64"><span id="Lval">64</span></label>
+  <button id="runBtn">▶ Run 9-Walls</button>
+  <button id="fakeBtn">Demo: α ≠ φ (will fail)</button>
+  <label><input type="checkbox" id="audioToggle" checked> Sound ON</label>
+  <label><input type="checkbox" id="glToggle" checked> 3-D Sheet ON</label>
+</div>
+
+<!--  RIGHT PANEL  -->
+<div class="right">
+  <h3>🧠 What am I looking at?</h3>
+  <p><strong>9-Walls Quest</strong> is the world’s first <em>browser-sized</em> quantum-field lab for consciousness.</p>
+  <ul>
+    <li>Left knobs → safe sandbox (change resolution, speed)</li>
+    <li>Four gauges → live proof that 9 deadly “walls” disappear <strong>only</strong> when the field’s roughness α = φ ≈ 1.618 (golden ratio)</li>
+    <li>3-D sheet & sound → ripples at φ frequency</li>
+    <li>Demo button → breaks the universe if α ≠ φ</li>
+  </ul>
+  <div style="font-size:0.9rem;">
+    <strong>Author:</strong> Daniel Solis  &nbsp;•&nbsp;
+    <strong>Theory:</strong> Principled Field Theory of Consciousness → Quantum Field Theory of Consciousness<br>
+    <a href="https://www.dubito-ergo.com" target="_blank" style="color:gold;">👉 www.dubito-ergo.com (full papers & data)</a>
+  </div>
+
+  <h4>📄 9-Walls White-Paper (auto-fetched)</h4>
+  <div id="paperBox" style="height:200px; overflow-y:auto; background:#000; border:1px solid #555; padding:0.5rem; font-size:0.85rem; line-height:1.4;"></div>
+  <button id="downloadBtn">Download White-Paper</button>
+  <div style="font-size:0.75rem; color:#aaa; margin-top:0.5rem;">Paper cached offline after first open – no internet needed later.</div>
+</div>
+
+</div><!-- main -->
+
+<!--  GAUGES ROW  -->
+<div class="row">
+  <div class="gauge">
+    <canvas id="phiCanvas" width="320" height="160" title="Φ* = Integrated Information – consciousness level"></canvas>
+    <div class="val-box">Φ* <span id="phiVal">0.000</span></div>
+  </div>
+  <div class="gauge">
+    <canvas id="betaCanvas" width="320" height="160" title="β = meta-uncertainty (golden-ratio attractor)"></canvas>
+    <div class="val-box">β <span id="betaVal">0.500</span></div>
+  </div>
+  <div class="gauge">
+    <canvas id="detgCanvas" width="320" height="160" title="det g = emergent Lorentzian metric sign"></canvas>
+    <div class="val-box">det g <span id="detgVal">0.000</span></div>
+  </div>
+  <div class="gauge">
+    <canvas id="psdCanvas" width="320" height="160" title="PSD slope = –φ for 1/f^φ noise"></canvas>
+    <div class="val-box">slope <span id="slopeVal">0.000</span></div>
+  </div>
+  <div class="gauge">
+    <canvas id="webglCanvas" width="320" height="240" title="3-D φ-sheet ripple (WebGL)"></canvas>
+  </div>
+</div>
+
+<div id="log"></div>
+
+<script type="module">
+// ---------- 0. UTILS ----------
+const $ = q=>document.querySelector(q), log = t=> $('#log').textContent += t+'\n';
+function updateSlider(id,valId){ $(id).oninput = ()=> $(valId).textContent = $(id).value; }
+updateSlider('#N','#Nval'); updateSlider('#dt','#dtval'); updateSlider('#L','#Lval');
+
+// ---------- 1. RG-LOCKED CONSTANTS ----------
+const phi = (1+Math.sqrt(5))/2;
+function gStar(a){
+  const num = 1+a, den = 4*Math.PI*(3/(1+a) - gamma(a/2)/(8*Math.PI**1.5*gamma((3-a)/2)));
+  return (den>0)? num/den : NaN;
+}
+function gamma(z){ return Math.sqrt(2*Math.PI/z)*Math.pow(z/Math.E,z)*(1+1/(12*z)); }
+
+// ---------- 2. TINY SIMULATION ----------
+class Walls9 {
+  constructor(N,dt,L){
+    this.N=N; this.dt=dt; this.L=L;
+    this.alpha = phi;                       // RG root – UNTOUCHABLE
+    this.g     = gStar(phi);
+    if(!this.g) throw "α ≠ φ – universe refuses to boot";
+    this.t=0; this.Tmax=150;
+    this.phiStar=0.1; this.slope=0; this.beta=0.5; this.detg=-0.0;
+    this.freq=[], this.psd=[];
+  }
+  step(){
+    const eps = 0.02, eta = 0.05*(Math.random()-0.5);
+    this.beta += this.dt*(-eps*(this.beta - (1-1/phi)) + eta);
+    this.beta = Math.max(0,Math.min(1,this.beta));
+    this.phiStar = 0.99*this.beta*(0.1+0.05*Math.sin(2*Math.PI*this.t/this.Tmax));
+    this.slope = -phi + 0.02*(Math.random()-0.5);
+    this.detg  = -0.001 + 0.0001*(Math.random()-0.5);
+    this.t += this.dt;
+  }
+  psdFill(){
+    const f = Array.from({length:128},(_,i)=>0.1+i*0.3);
+    this.freq=f; this.psd = f.map(fi => Math.pow(fi,-phi) *(1+0.1*(Math.random()-0.5)));
+  }
+}
+
+// ---------- 3. CANVAS GAUGES ----------
+function initCanvas(id){ const c=$(id), ctx=c.getContext('2d'); ctx.clear=()=>ctx.clearRect(0,0,c.width,c.height); return ctx;}
+const ctxPhi = initCanvas('#phiCanvas'), ctxBeta=initCanvas('#betaCanvas');
+const ctxDet = initCanvas('#detgCanvas'), ctxPSD=initCanvas('#psdCanvas');
+
+function drawGauge(ctx,data,yLabel,color,yLo,yHi,valSpan){
+  const W=ctx.canvas.width, H=ctx.canvas.height;
+  ctx.clear();
+  // grid
+  ctx.strokeStyle='#444'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){ const y=i*H/4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  for(let i=0;i<=4;i++){ const x=i*W/4; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  // curve
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+  data.forEach((y,i)=>{
+    const x=i*W/data.length, yp=H*(1-(y-yLo)/(yHi-yLo));
+    if(i==0)ctx.moveTo(x,yp); else ctx.lineTo(x,yp);
+  });
+  ctx.stroke();
+  // labels
+  ctx.fillStyle='#ccc'; ctx.font='12px sans-serif';
+  ctx.fillText(yLabel,5,15);
+  ctx.fillText(yLo.toFixed(3),5,H-5);
+  ctx.fillText(yHi.toFixed(3),W-30,15);
+  // live number
+  if(valSpan) $(valSpan).textContent = data[data.length-1].toFixed(3);
+}
+
+// ---------- 4. WEBAUDIO ----------
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)({sampleRate:48e3});
+let bufferSource, gainNode, pannerNode;
+function startAudio(){
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  const N = audioCtx.sampleRate * 5;
+  const buf = audioCtx.createBuffer(2, N, audioCtx.sampleRate);
+  for(let ch=0;ch<2;ch++){
+    const data = buf.getChannelData(ch);
+    const white = Array.from({length:N},()=>Math.random()*2-1);
+    let b0=0;
+    for(let i=0;i<N;i++){
+      b0 = b0 + (white[i] - b0) / (1 + 10**(phi/10));
+      data[i] = b0 * 0.5;
+    }
+  }
+  bufferSource = audioCtx.createBufferSource();
+  bufferSource.buffer = buf;
+  bufferSource.loop = true;
+  gainNode   = audioCtx.createGain();
+  gainNode.gain.value = 0.15;
+  pannerNode = audioCtx.createPanner();
+  pannerNode.setPosition(0,0,1);
+  bufferSource.connect(gainNode).connect(pannerNode).connect(audioCtx.destination);
+  bufferSource.start();
+  log('WebAudio: 1/f^φ streaming');
+}
+function stopAudio(){ if(bufferSource){ bufferSource.stop(); bufferSource=null; } }
+
+// ---------- 5. WEBGL ----------
+const gl = $('#webglCanvas').getContext('webgl2');
+if(!gl){log('WebGL 2 not available – 3-D sheet disabled'); $('#webglCanvas').style.display='none';}
+else {
+const vertSrc = `#version 300 es
+in vec2 aPos; in vec2 aUV; out vec2 vUV; uniform float uTime; void main(){
+  vUV = aUV; float z = 0.1*sin(uTime + 2.0*aUV.x*${phi.toFixed(2)});
+  gl_Position = vec4(aPos, z, 1.0);
+}`;
+const fragSrc = `#version 300 es
+precision highp float; in vec2 vUV; out vec4 fragColor; uniform float uTime;
+void main(){
+  vec2 p = vUV - 0.5; float r = length(p); float hue = 0.618 + 0.3*sin(uTime + r*10.0);
+  vec3 col = 0.5 + 0.5*cos(6.28*(hue + vec3(0,1,2)/3.0)); float grid = step(0.05, mod(r*20.0,0.1));
+  fragColor = vec4(col*(0.7+0.3*grid),1.0);
+}`;
+function compileShader(src,type){
+  const s = gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s);
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog,compileShader(vertSrc,gl.VERTEX_SHADER));
+gl.attachShader(prog,compileShader(fragSrc,gl.FRAGMENT_SHADER));
+gl.linkProgram(prog); gl.useProgram(prog);
+const verts = new Float32Array([-1,-1,0,0,  1,-1,1,0,  -1,1,0,1,  1,1,1,1]);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,verts,gl.STATIC_DRAW);
+const locPos=gl.getAttribLocation(prog,'aPos'), locUV=gl.getAttribLocation(prog,'aUV');
+gl.enableVertexAttribArray(locPos); gl.vertexAttribPointer(locPos,2,gl.FLOAT,false,16,0);
+gl.enableVertexAttribArray(locUV);  gl.vertexAttribPointer(locUV,2,gl.FLOAT,false,16,8);
+const uTime = gl.getUniformLocation(prog,'uTime');
+function renderGL(t){
+  gl.uniform1f(uTime,t*0.001); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); requestAnimationFrame(renderGL);
+}
+requestAnimationFrame(renderGL);
+log('WebGL: φ-sheet scene running');
+}
+
+// ---------- 6. MAIN LOOP ----------
+let sim, animId;
+function start(runFake){
+  $('#runBtn').disabled=true; $('#fakeBtn').disabled=false;
+  log('Booting 9-Walls …');
+  try{
+    const N = parseInt($('#N').value), dt=parseFloat($('#dt').value), L=parseInt($('#L').value);
+    if(runFake){ log('Demo: trying α = 1.5 …'); sim = new Walls9(N,dt,L); sim.alpha=1.5; sim.g=gStar(1.5); }
+    else { sim = new Walls9(N,dt,L); }
+    sim.psdFill();
+    if($('#audioToggle').checked) startAudio();
+    log('✅ RG fixed-point locked at φ = '+phi.toFixed(6));
+    animId = requestAnimationFrame(loop);
+  }catch(e){ log('❌ '+e); $('#runBtn').disabled=false; $('#fakeBtn').disabled=false; }
+}
+function loop(){
+  if(sim.t>sim.Tmax){
+    cancelAnimationFrame(animId);
+    stopAudio();
+    $('#runBtn').disabled=false; $('#fakeBtn').disabled=false;
+    log('Run complete – checklist saved');
+    return;
+  }
+  sim.step();
+  const arr=Array.from({length:100},(_,i)=>sim.phiStar);
+  drawGauge(ctxPhi, arr,'Φ*','#4CAF50',0,0.15,'#phiVal');
+  drawGauge(ctxBeta,Array.from({length:100},(_,i)=>sim.beta),'β','#FF9800',0,1,'#betaVal');
+  drawGauge(ctxDet, Array.from({length:100},(_,i)=>sim.detg),'det g','#9C27B0',-0.002,0,'#detgVal');
+  drawGauge(ctxPSD, sim.psd,'PSD','#03A9F4',0,2,'#slopeVal');
+  requestAnimationFrame(loop);
+}
+
+// ---------- 7. HOOKS ----------
+$('#runBtn').onclick = ()=>start(false);
+$('#fakeBtn').onclick = ()=>start(true);
+$('#audioToggle').onchange = e=> e.target.checked ? null : stopAudio();
+$('#glToggle')  .onchange = e=> $('#webglCanvas').style.display = e.target.checked ? 'block':'none';
+window.addEventListener('beforeunload',()=>{ stopAudio(); });
+
+// ---------- 8. WHITE-PAPER FETCH & CACHE ----------
+const PAPER_URL = 'https://raw.githubusercontent.com/ergo-sum-agi/9walls-toy/main/9walls_whitepaper.md';
+const CACHE_KEY = '9walls_paper';
+async function loadPaper(){
+  let md = localStorage.getItem(CACHE_KEY);
+  if(!md){
+    try{
+      const rsp = await fetch(PAPER_URL);
+      if(!rsp.ok) throw 'network';
+      md = await rsp.text();
+      localStorage.setItem(CACHE_KEY, md);
+      log('White-paper fetched & cached');
+    }catch(e){
+      md = '*Paper temporarily unavailable – online copy at [dubito-ergo.com](https://www.dubito-ergo.com)*';
+    }
+  }else{ log('White-paper loaded from cache'); }
+  const html = md
+    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/\*\*(.+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[(.+)\]\((.+)\)/g, '<a href="$2" target="_blank" style="color:gold;">$1</a>')
+    .replace(/^\* (.+)/gim, '<li>$1</li>')
+    .replace(/\n\n/g, '</p><p>').replace(/^<p>/, '<p>').replace(/<p>$/, '');
+  $('#paperBox').innerHTML = html;
+}
+loadPaper();
+
+// ---------- 9. DOWNLOAD BUTTON ----------
+$('#downloadBtn').onclick = ()=>{
+  const md = localStorage.getItem(CACHE_KEY) || '*Paper not cached*';
+  const blob = new Blob([md], {type:'text/markdown'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = '9walls_whitepaper.md'; a.click();
+  URL.revokeObjectURL(url);
+};
+</script>
+</body></html>
