@@ -2,26 +2,41 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>9-Walls Quest – Browser Lab (Audio + WebGL) [Fixed]</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9-Walls Quest – Browser Lab (Audio + WebGL) [v1.2: Layout Flow]</title>
 <style>
- body{font-family:system-ui, sans-serif; margin:0; background:#111; color:#eee}
- header{background:gold; color:#000; padding:0.4rem; font-weight:bold}
- .main{display:flex; gap:1rem; padding:1rem; flex-wrap:wrap; align-items:flex-start}
- .left{flex:0 0 280px}
- .right{flex:1 1 340px; background:#1a1a1a; border:1px solid #444; border-radius:8px; padding:1rem}
- .row{display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-start}
- canvas{border:1px solid #555; margin:0.5rem 0}
- label{display:block; margin:0.3rem 0}
- button{background:gold; border:none; padding:0.5rem 1rem; cursor:pointer}
+ body{font-family:system-ui, sans-serif; margin:0; background:#111; color:#eee; line-height:1.4}
+ header{background:gold; color:#000; padding:0.8rem; font-weight:bold; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.3)}
+ .main{display:flex; gap:1rem; padding:1rem; max-width:1200px; margin:0 auto; flex-wrap:wrap}
+ .left{flex:0 0 260px; background:#1a1a1a; border:1px solid #444; border-radius:8px; padding:1rem}
+ .right{flex:1 1 400px; background:#1a1a1a; border:1px solid #444; border-radius:8px; padding:1rem; min-width:300px}
+ .row{display:contents} /* For grid below */
+ .gauges{display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1rem; padding:1rem; max-width:1200px; margin:0 auto}
+ canvas{border:1px solid #555; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2)}
+ label{display:block; margin:0.5rem 0; font-size:0.9rem}
+ button{background:gold; border:none; padding:0.6rem 1rem; cursor:pointer; border-radius:4px; font-weight:bold; transition:background 0.2s}
+ button:hover{background:#ffd700}
  button:disabled{background:#666; cursor:not-allowed}
- #log{height:6rem; overflow-y:scroll; font-size:0.8rem; background:#222; padding:0.5rem}
- .gauge{display:inline-block; margin:0.5rem; vertical-align:top}
- .val-box{background:#000; border:1px solid #555; padding:0.2rem 0.4rem; font-family:monospace; font-size:0.9rem}
+ #log{height:8rem; overflow-y:scroll; font-size:0.8rem; background:#222; padding:0.5rem; border:1px solid #444; border-radius:4px; margin-top:1rem}
+ .gauge{margin:0.5rem 0; text-align:center}
+ .val-box{background:#000; border:1px solid #555; padding:0.3rem 0.6rem; font-family:monospace; font-size:0.9rem; border-radius:4px; display:inline-block; margin:0.2rem}
  [title]{cursor:help}
+ h3, h4{margin:1rem 0 0.5rem; color:gold}
+ ul{line-height:1.5}
+ a{color:gold; text-decoration:none}
+ a:hover{text-decoration:underline}
+ /* Mobile */
+ @media (max-width:768px){
+  .main{flex-direction:column; padding:0.5rem}
+  .left, .right{flex:1 1 auto; min-width:unset}
+  .gauges{grid-template-columns:1fr; gap:0.5rem}
+  canvas{width:100%; height:auto}
+  #log{height:6rem}
+ }
 </style>
 </head>
 <body>
-<header>9-Walls Quest – Consciousness Field Lab (Audio + WebGL) [Enhanced v1.1]</header>
+<header>9-Walls Quest – Consciousness Field Lab (Audio + WebGL) [v1.2: Golden Layout]</header>
 
 <!-- MAIN FLEX BOX -->
 <div class="main">
@@ -48,22 +63,22 @@
     <li>3-D sheet & sound → ripples at φ frequency</li>
     <li>Demo button → breaks the universe if α ≠ φ</li>
   </ul>
-  <div style="font-size:0.9rem;">
+  <div style="font-size:0.9rem; border-top:1px solid #444; padding-top:0.5rem; margin-top:1rem">
     <strong>Author:</strong> Daniel Solis &nbsp;•&nbsp;
     <strong>Theory:</strong> Principled Field Theory of Consciousness → Quantum Field Theory of Consciousness<br>
-    <a href="https://www.dubito-ergo.com" target="_blank" style="color:gold;">👉 www.dubito-ergo.com (full papers & data)</a>
+    <a href="https://www.dubito-ergo.com" target="_blank">👉 www.dubito-ergo.com (full papers & data)</a>
   </div>
 
   <h4>📄 9-Walls White-Paper (auto-fetched)</h4>
-  <div id="paperBox" style="height:200px; overflow-y:auto; background:#000; border:1px solid #555; padding:0.5rem; font-size:0.85rem; line-height:1.4;"></div>
+  <div id="paperBox" style="height:200px; overflow-y:auto; background:#000; border:1px solid #555; padding:0.5rem; font-size:0.85rem; line-height:1.4; border-radius:4px;"></div>
   <button id="downloadBtn">Download White-Paper</button>
   <div style="font-size:0.75rem; color:#aaa; margin-top:0.5rem;">Paper cached offline after first open – no internet needed later.</div>
 </div>
 
 </div><!-- main -->
 
-<!-- GAUGES ROW -->
-<div class="row">
+<!-- GAUGES GRID -->
+<div class="gauges">
   <div class="gauge">
     <canvas id="phiCanvas" width="320" height="160" title="Φ* = Integrated Information – consciousness level" aria-label="Phi Star Gauge"></canvas>
     <div class="val-box">Φ* <span id="phiVal">0.000</span></div>
@@ -80,8 +95,8 @@
     <canvas id="psdCanvas" width="320" height="160" title="PSD slope = –φ for 1/f^φ noise" aria-label="PSD Slope Gauge"></canvas>
     <div class="val-box">slope <span id="slopeVal">0.000</span></div>
   </div>
-  <div class="gauge">
-    <canvas id="webglCanvas" width="320" height="240" title="3-D φ-sheet ripple (WebGL)" aria-label="WebGL Sheet"></canvas>
+  <div class="gauge" style="grid-column: span 2; justify-self:center">
+    <canvas id="webglCanvas" width="640" height="240" title="3-D φ-sheet ripple (WebGL)" aria-label="WebGL Sheet"></canvas>
   </div>
 </div>
 
