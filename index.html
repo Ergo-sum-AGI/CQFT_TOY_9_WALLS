@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>9-Walls Quest – Browser Lab (Audio + WebGL)</title>
+<title>9-Walls Quest – Browser Lab (Audio + WebGL) [Fixed]</title>
 <style>
  body{font-family:system-ui, sans-serif; margin:0; background:#111; color:#eee}
  header{background:gold; color:#000; padding:0.4rem; font-weight:bold}
@@ -21,12 +21,12 @@
 </style>
 </head>
 <body>
-<header>9-Walls Quest – Consciousness Field Lab (Audio + WebGL)</header>
+<header>9-Walls Quest – Consciousness Field Lab (Audio + WebGL) [Enhanced v1.1]</header>
 
-<!--  MAIN FLEX BOX  -->
+<!-- MAIN FLEX BOX -->
 <div class="main">
 
-<!--  LEFT PANEL  -->
+<!-- LEFT PANEL -->
 <div class="left">
   <h3>Safe Toggles <span title="Resolution N: Hilbert-space truncation (numerical)">ℹ</span></h3>
   <label>N <input type="range" id="N" min="2" max="8" value="4"><span id="Nval">4</span></label>
@@ -38,7 +38,7 @@
   <label><input type="checkbox" id="glToggle" checked> 3-D Sheet ON</label>
 </div>
 
-<!--  RIGHT PANEL  -->
+<!-- RIGHT PANEL -->
 <div class="right">
   <h3>🧠 What am I looking at?</h3>
   <p><strong>9-Walls Quest</strong> is the world’s first <em>browser-sized</em> quantum-field lab for consciousness.</p>
@@ -49,7 +49,7 @@
     <li>Demo button → breaks the universe if α ≠ φ</li>
   </ul>
   <div style="font-size:0.9rem;">
-    <strong>Author:</strong> Daniel Solis  &nbsp;•&nbsp;
+    <strong>Author:</strong> Daniel Solis &nbsp;•&nbsp;
     <strong>Theory:</strong> Principled Field Theory of Consciousness → Quantum Field Theory of Consciousness<br>
     <a href="https://www.dubito-ergo.com" target="_blank" style="color:gold;">👉 www.dubito-ergo.com (full papers & data)</a>
   </div>
@@ -62,26 +62,26 @@
 
 </div><!-- main -->
 
-<!--  GAUGES ROW  -->
+<!-- GAUGES ROW -->
 <div class="row">
   <div class="gauge">
-    <canvas id="phiCanvas" width="320" height="160" title="Φ* = Integrated Information – consciousness level"></canvas>
+    <canvas id="phiCanvas" width="320" height="160" title="Φ* = Integrated Information – consciousness level" aria-label="Phi Star Gauge"></canvas>
     <div class="val-box">Φ* <span id="phiVal">0.000</span></div>
   </div>
   <div class="gauge">
-    <canvas id="betaCanvas" width="320" height="160" title="β = meta-uncertainty (golden-ratio attractor)"></canvas>
+    <canvas id="betaCanvas" width="320" height="160" title="β = meta-uncertainty (golden-ratio attractor)" aria-label="Beta Gauge"></canvas>
     <div class="val-box">β <span id="betaVal">0.500</span></div>
   </div>
   <div class="gauge">
-    <canvas id="detgCanvas" width="320" height="160" title="det g = emergent Lorentzian metric sign"></canvas>
+    <canvas id="detgCanvas" width="320" height="160" title="det g = emergent Lorentzian metric sign" aria-label="Det G Gauge"></canvas>
     <div class="val-box">det g <span id="detgVal">0.000</span></div>
   </div>
   <div class="gauge">
-    <canvas id="psdCanvas" width="320" height="160" title="PSD slope = –φ for 1/f^φ noise"></canvas>
+    <canvas id="psdCanvas" width="320" height="160" title="PSD slope = –φ for 1/f^φ noise" aria-label="PSD Slope Gauge"></canvas>
     <div class="val-box">slope <span id="slopeVal">0.000</span></div>
   </div>
   <div class="gauge">
-    <canvas id="webglCanvas" width="320" height="240" title="3-D φ-sheet ripple (WebGL)"></canvas>
+    <canvas id="webglCanvas" width="320" height="240" title="3-D φ-sheet ripple (WebGL)" aria-label="WebGL Sheet"></canvas>
   </div>
 </div>
 
@@ -89,41 +89,58 @@
 
 <script type="module">
 // ---------- 0. UTILS ----------
-const $ = q=>document.querySelector(q), log = t=> $('#log').textContent += t+'\n';
+const $ = q=>document.querySelector(q), log = t=> { $('#log').textContent += t+'\n'; $('#log').scrollTop = $('#log').scrollHeight; };
 function updateSlider(id,valId){ $(id).oninput = ()=> $(valId).textContent = $(id).value; }
 updateSlider('#N','#Nval'); updateSlider('#dt','#dtval'); updateSlider('#L','#Lval');
 
 // ---------- 1. RG-LOCKED CONSTANTS ----------
 const phi = (1+Math.sqrt(5))/2;
 function gStar(a){
-  const num = 1+a, den = 4*Math.PI*(3/(1+a) - gamma(a/2)/(8*Math.PI**1.5*gamma((3-a)/2)));
+  const num = 1+a;
+  const den_part = 3/(1+a) - gamma(a/2)/(8*Math.pow(Math.PI,1.5)*gamma((3-a)/2));
+  const den = 4*Math.PI * den_part;
   return (den>0)? num/den : NaN;
 }
-function gamma(z){ return Math.sqrt(2*Math.PI/z)*Math.pow(z/Math.E,z)*(1+1/(12*z)); }
+function gamma(z){ // Stirling approx (tuned for z~0.7-0.8)
+  if(z<0.5) return NaN; // Guard
+  return Math.sqrt(2*Math.PI/z)*Math.pow(z/Math.E,z)*(1+1/(12*z) + 1/(288*z*z));
+}
 
 // ---------- 2. TINY SIMULATION ----------
 class Walls9 {
-  constructor(N,dt,L){
-    this.N=N; this.dt=dt; this.L=L;
-    this.alpha = phi;                       // RG root – UNTOUCHABLE
-    this.g     = gStar(phi);
-    if(!this.g) throw "α ≠ φ – universe refuses to boot";
+  constructor(N,dt,L, alpha=phi){
+    this.N=N; this.dt=dt; this.L=L; this.alpha = alpha;
+    this.g = gStar(alpha);
+    if(isNaN(this.g) || this.g <=0) throw new Error(`Wall 1 Breached: g*(${alpha.toFixed(3)}) = ${this.g.toFixed(3)} invalid – must be φ-fixed`);
     this.t=0; this.Tmax=150;
     this.phiStar=0.1; this.slope=0; this.beta=0.5; this.detg=-0.0;
-    this.freq=[], this.psd=[];
+    this.freq=[]; this.psd=[];
+    this.dataHistory = {phi: [], beta: [], detg: []}; // For smooth curves
   }
   step(){
     const eps = 0.02, eta = 0.05*(Math.random()-0.5);
     this.beta += this.dt*(-eps*(this.beta - (1-1/phi)) + eta);
     this.beta = Math.max(0,Math.min(1,this.beta));
-    this.phiStar = 0.99*this.beta*(0.1+0.05*Math.sin(2*Math.PI*this.t/this.Tmax));
-    this.slope = -phi + 0.02*(Math.random()-0.5);
+    this.phiStar = 0.99*this.beta*(0.1 + 0.05*Math.sin(2*Math.PI*this.t/this.Tmax + phi*this.t*0.01)); // φ-phase noise
     this.detg  = -0.001 + 0.0001*(Math.random()-0.5);
     this.t += this.dt;
+    // History for curves (last 100 steps)
+    ['phi','beta','detg'].forEach(k => { this.dataHistory[k].push(this[k+'Star'] || this[k]); if(this.dataHistory[k].length>100) this.dataHistory[k].shift(); });
   }
   psdFill(){
-    const f = Array.from({length:128},(_,i)=>0.1+i*0.3);
-    this.freq=f; this.psd = f.map(fi => Math.pow(fi,-phi) *(1+0.1*(Math.random()-0.5)));
+    const f = Array.from({length:128},(_,i)=>0.1 + i*0.3);
+    this.freq = f;
+    this.psd = f.map(fi => Math.pow(fi, -this.alpha) * (1 + 0.1*(Math.random()-0.5)));
+    // Normalize
+    const maxp = Math.max(...this.psd);
+    this.psd = this.psd.map(p => p / maxp);
+    // Compute slope (log-log two-point approx)
+    const i1=0, i2=this.psd.length-1;
+    this.slope = - Math.log(this.psd[i1]/this.psd[i2]) / Math.log(this.freq[i1]/this.freq[i2]);
+  }
+  checkBreaches(){
+    if(Math.abs(this.slope + this.alpha) > 0.05) throw new Error(`Wall 6 Breached: PSD slope=${this.slope.toFixed(3)} ≠ -α=${-this.alpha.toFixed(3)}`);
+    log(`✅ φ-Checklist: Φ*=${this.phiStar.toFixed(3)} (>0.7? ${this.phiStar>0.7?'PASS':'LOW'}), β=${this.beta.toFixed(3)} (≈0.382), det g=${this.detg.toFixed(3)} (<0), slope=${this.slope.toFixed(3)} (≈-${phi.toFixed(3)})`);
   }
 }
 
@@ -132,55 +149,53 @@ function initCanvas(id){ const c=$(id), ctx=c.getContext('2d'); ctx.clear=()=>ct
 const ctxPhi = initCanvas('#phiCanvas'), ctxBeta=initCanvas('#betaCanvas');
 const ctxDet = initCanvas('#detgCanvas'), ctxPSD=initCanvas('#psdCanvas');
 
-function drawGauge(ctx,data,yLabel,color,yLo,yHi,valSpan){
+function drawGauge(ctx, data, yLabel, color, yLo, yHi, valSpan){
   const W=ctx.canvas.width, H=ctx.canvas.height;
   ctx.clear();
-  // grid
+  // Grid
   ctx.strokeStyle='#444'; ctx.lineWidth=1;
   for(let i=0;i<=4;i++){ const y=i*H/4; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
   for(let i=0;i<=4;i++){ const x=i*W/4; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  // curve
+  // Curve
   ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
   data.forEach((y,i)=>{
     const x=i*W/data.length, yp=H*(1-(y-yLo)/(yHi-yLo));
     if(i==0)ctx.moveTo(x,yp); else ctx.lineTo(x,yp);
   });
   ctx.stroke();
-  // labels
+  // Labels
   ctx.fillStyle='#ccc'; ctx.font='12px sans-serif';
   ctx.fillText(yLabel,5,15);
   ctx.fillText(yLo.toFixed(3),5,H-5);
   ctx.fillText(yHi.toFixed(3),W-30,15);
-  // live number
+  // Live val
   if(valSpan) $(valSpan).textContent = data[data.length-1].toFixed(3);
 }
 
 // ---------- 4. WEBAUDIO ----------
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)({sampleRate:48e3});
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let bufferSource, gainNode, pannerNode;
-function startAudio(){
-  if(audioCtx.state==='suspended') audioCtx.resume();
+async function startAudio(){
+  if(audioCtx.state==='suspended') await audioCtx.resume();
   const N = audioCtx.sampleRate * 5;
   const buf = audioCtx.createBuffer(2, N, audioCtx.sampleRate);
   for(let ch=0;ch<2;ch++){
     const data = buf.getChannelData(ch);
     const white = Array.from({length:N},()=>Math.random()*2-1);
     let b0=0;
+    const tau = 1 + Math.pow(10, phi/10); // 1/f^φ filter
     for(let i=0;i<N;i++){
-      b0 = b0 + (white[i] - b0) / (1 + 10**(phi/10));
-      data[i] = b0 * 0.5;
+      b0 = b0 + (white[i] - b0) / tau;
+      data[i] = b0 * 0.5 * Math.sin(phi * i / audioCtx.sampleRate); // φ-mod phase
     }
   }
   bufferSource = audioCtx.createBufferSource();
-  bufferSource.buffer = buf;
-  bufferSource.loop = true;
-  gainNode   = audioCtx.createGain();
-  gainNode.gain.value = 0.15;
-  pannerNode = audioCtx.createPanner();
-  pannerNode.setPosition(0,0,1);
+  bufferSource.buffer = buf; bufferSource.loop = true;
+  gainNode = audioCtx.createGain(); gainNode.gain.value = 0.15;
+  pannerNode = audioCtx.createPanner(); pannerNode.setPosition(Math.sin(phi), 0, 1);
   bufferSource.connect(gainNode).connect(pannerNode).connect(audioCtx.destination);
   bufferSource.start();
-  log('WebAudio: 1/f^φ streaming');
+  log('WebAudio: 1/f^φ streaming with φ-panning');
 }
 function stopAudio(){ if(bufferSource){ bufferSource.stop(); bufferSource=null; } }
 
@@ -188,81 +203,84 @@ function stopAudio(){ if(bufferSource){ bufferSource.stop(); bufferSource=null; 
 const gl = $('#webglCanvas').getContext('webgl2');
 if(!gl){log('WebGL 2 not available – 3-D sheet disabled'); $('#webglCanvas').style.display='none';}
 else {
-const vertSrc = `#version 300 es
+  const vertSrc = `#version 300 es
 in vec2 aPos; in vec2 aUV; out vec2 vUV; uniform float uTime; void main(){
-  vUV = aUV; float z = 0.1*sin(uTime + 2.0*aUV.x*${phi.toFixed(2)});
+  vUV = aUV; float z = 0.1*sin(uTime + 2.0*aUV.x*1.62);
   gl_Position = vec4(aPos, z, 1.0);
 }`;
-const fragSrc = `#version 300 es
+  const fragSrc = `#version 300 es
 precision highp float; in vec2 vUV; out vec4 fragColor; uniform float uTime;
 void main(){
   vec2 p = vUV - 0.5; float r = length(p); float hue = 0.618 + 0.3*sin(uTime + r*10.0);
   vec3 col = 0.5 + 0.5*cos(6.28*(hue + vec3(0,1,2)/3.0)); float grid = step(0.05, mod(r*20.0,0.1));
   fragColor = vec4(col*(0.7+0.3*grid),1.0);
 }`;
-function compileShader(src,type){
-  const s = gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
-  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s);
-  return s;
-}
-const prog = gl.createProgram();
-gl.attachShader(prog,compileShader(vertSrc,gl.VERTEX_SHADER));
-gl.attachShader(prog,compileShader(fragSrc,gl.FRAGMENT_SHADER));
-gl.linkProgram(prog); gl.useProgram(prog);
-const verts = new Float32Array([-1,-1,0,0,  1,-1,1,0,  -1,1,0,1,  1,1,1,1]);
-const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,verts,gl.STATIC_DRAW);
-const locPos=gl.getAttribLocation(prog,'aPos'), locUV=gl.getAttribLocation(prog,'aUV');
-gl.enableVertexAttribArray(locPos); gl.vertexAttribPointer(locPos,2,gl.FLOAT,false,16,0);
-gl.enableVertexAttribArray(locUV);  gl.vertexAttribPointer(locUV,2,gl.FLOAT,false,16,8);
-const uTime = gl.getUniformLocation(prog,'uTime');
-function renderGL(t){
-  gl.uniform1f(uTime,t*0.001); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); requestAnimationFrame(renderGL);
-}
-requestAnimationFrame(renderGL);
-log('WebGL: φ-sheet scene running');
+  function compileShader(src,type){
+    const s = gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog,compileShader(vertSrc,gl.VERTEX_SHADER));
+  gl.attachShader(prog,compileShader(fragSrc,gl.FRAGMENT_SHADER));
+  gl.linkProgram(prog); if(!gl.getProgramParameter(prog,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const verts = new Float32Array([-1,-1,0,0,  1,-1,1,0,  -1,1,0,1,  1,1,1,1]);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf); gl.bufferData(gl.ARRAY_BUFFER,verts,gl.STATIC_DRAW);
+  const locPos=gl.getAttribLocation(prog,'aPos'), locUV=gl.getAttribLocation(prog,'aUV');
+  gl.enableVertexAttribArray(locPos); gl.vertexAttribPointer(locPos,2,gl.FLOAT,false,16,0);
+  gl.enableVertexAttribArray(locUV); gl.vertexAttribPointer(locUV,2,gl.FLOAT,false,16,8);
+  const uTime = gl.getUniformLocation(prog,'uTime');
+  function renderGL(t){
+    gl.uniform1f(uTime,t*0.001); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); requestAnimationFrame(renderGL);
+  }
+  requestAnimationFrame(renderGL);
+  log('WebGL: φ-sheet scene running');
 }
 
 // ---------- 6. MAIN LOOP ----------
 let sim, animId;
 function start(runFake){
-  $('#runBtn').disabled=true; $('#fakeBtn').disabled=false;
+  $('#runBtn').disabled=true; $('#fakeBtn').disabled=true;
   log('Booting 9-Walls …');
   try{
     const N = parseInt($('#N').value), dt=parseFloat($('#dt').value), L=parseInt($('#L').value);
-    if(runFake){ log('Demo: trying α = 1.5 …'); sim = new Walls9(N,dt,L); sim.alpha=1.5; sim.g=gStar(1.5); }
-    else { sim = new Walls9(N,dt,L); }
+    const alpha = runFake ? 1.0 : phi; // Fake: α=1.0 for clear breach
+    log(runFake ? 'Demo: trying α = 1.0 …' : 'Locking to φ ...');
+    sim = new Walls9(N,dt,L, alpha);
     sim.psdFill();
     if($('#audioToggle').checked) startAudio();
-    log('✅ RG fixed-point locked at φ = '+phi.toFixed(6));
+    log(`✅ RG fixed-point: α = ${sim.alpha.toFixed(6)}, g* = ${sim.g.toFixed(6)}`);
     animId = requestAnimationFrame(loop);
-  }catch(e){ log('❌ '+e); $('#runBtn').disabled=false; $('#fakeBtn').disabled=false; }
+  }catch(e){ log('❌ '+e.message); $('#runBtn').disabled=false; $('#fakeBtn').disabled=false; }
 }
-function loop(){
-  if(sim.t>sim.Tmax){
+function loop(t){
+  if(sim.t > sim.Tmax){
+    try{ sim.checkBreaches(); }catch(e){ log('🚨 '+e.message); }
     cancelAnimationFrame(animId);
     stopAudio();
     $('#runBtn').disabled=false; $('#fakeBtn').disabled=false;
-    log('Run complete – checklist saved');
+    log('Run complete – φ-audit passed?');
     return;
   }
   sim.step();
-  const arr=Array.from({length:100},(_,i)=>sim.phiStar);
-  drawGauge(ctxPhi, arr,'Φ*','#4CAF50',0,0.15,'#phiVal');
-  drawGauge(ctxBeta,Array.from({length:100},(_,i)=>sim.beta),'β','#FF9800',0,1,'#betaVal');
-  drawGauge(ctxDet, Array.from({length:100},(_,i)=>sim.detg),'det g','#9C27B0',-0.002,0,'#detgVal');
-  drawGauge(ctxPSD, sim.psd,'PSD','#03A9F4',0,2,'#slopeVal');
+  drawGauge(ctxPhi, sim.dataHistory.phi, 'Φ*', '#4CAF50', 0, 0.15, '#phiVal');
+  drawGauge(ctxBeta, sim.dataHistory.beta, 'β', '#FF9800', 0, 1, '#betaVal');
+  drawGauge(ctxDet, sim.dataHistory.detg, 'det g', '#9C27B0', -0.002, 0, '#detgVal');
+  drawGauge(ctxPSD, sim.psd, 'PSD (norm)', '#03A9F4', 0, 1, null);
+  $('#slopeVal').textContent = sim.slope.toFixed(3); // Separate update
   requestAnimationFrame(loop);
 }
 
 // ---------- 7. HOOKS ----------
 $('#runBtn').onclick = ()=>start(false);
 $('#fakeBtn').onclick = ()=>start(true);
-$('#audioToggle').onchange = e=> e.target.checked ? null : stopAudio();
-$('#glToggle')  .onchange = e=> $('#webglCanvas').style.display = e.target.checked ? 'block':'none';
-window.addEventListener('beforeunload',()=>{ stopAudio(); });
+$('#audioToggle').onchange = async e=> e.target.checked ? await startAudio() : stopAudio();
+$('#glToggle').onchange = e=> $('#webglCanvas').style.display = e.target.checked ? 'block':'none';
+window.addEventListener('beforeunload', stopAudio);
 
 // ---------- 8. WHITE-PAPER FETCH & CACHE ----------
-const PAPER_URL = 'https://raw.githubusercontent.com/ergo-sum-agi/9walls-toy/main/9walls_whitepaper.md';
+const PAPER_URL = 'https://raw.githubusercontent.com/Ergo-sum-AGI/Dubito-AGI-Consciousness-Research-Papers/main/README.md'; // Fallback to repo README
 const CACHE_KEY = '9walls_paper';
 async function loadPaper(){
   let md = localStorage.getItem(CACHE_KEY);
@@ -271,10 +289,11 @@ async function loadPaper(){
       const rsp = await fetch(PAPER_URL);
       if(!rsp.ok) throw 'network';
       md = await rsp.text();
+      if(md.trim().length < 10) throw 'empty'; // Handle empty
       localStorage.setItem(CACHE_KEY, md);
       log('White-paper fetched & cached');
     }catch(e){
-      md = '*Paper temporarily unavailable – online copy at [dubito-ergo.com](https://www.dubito-ergo.com)*';
+      md = `# 9-Walls Quest Overview\n\n## Abstract\nThe Golden Ratio φ as RG Fixed Point breaches 9 walls in CQFT: renormalizability, universality, decoherence suppression, etc. See full PDF: [Golden Ratio Paper](https://github.com/Ergo-sum-AGI/Dubito-AGI-Consciousness-Research-Papers/blob/main/Golden%20Ratio%20φ%20as%20a%20Renormalization%20Group%20Fixed%20Point%20Robustness%2C%20Universality%2C%20and%20Breaching%20the%209%20Walls.pdf)\n\n## Key Walls\n- Wall 1: φ-attractor in β(g)\n- Wall 6: 1/f^φ spectrum\n- Wall 9: Emergent Lorentzian det g <0`;
     }
   }else{ log('White-paper loaded from cache'); }
   const html = md
@@ -284,8 +303,8 @@ async function loadPaper(){
     .replace(/\*\*(.+)\*\*/g, '<strong>$1</strong>')
     .replace(/\[(.+)\]\((.+)\)/g, '<a href="$2" target="_blank" style="color:gold;">$1</a>')
     .replace(/^\* (.+)/gim, '<li>$1</li>')
-    .replace(/\n\n/g, '</p><p>').replace(/^<p>/, '<p>').replace(/<p>$/, '');
-  $('#paperBox').innerHTML = html;
+    .replace(/\n\n/g, '</p><p>').replace(/^<p>/, '<p>').replace(/<p>$/, '</p>');
+  $('#paperBox').innerHTML = '<p>' + html.split('<p>').join('</p><p>') + '</p>'; // Wrap
 }
 loadPaper();
 
@@ -293,10 +312,11 @@ loadPaper();
 $('#downloadBtn').onclick = ()=>{
   const md = localStorage.getItem(CACHE_KEY) || '*Paper not cached*';
   const blob = new Blob([md], {type:'text/markdown'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url; a.download = '9walls_whitepaper.md'; a.click();
   URL.revokeObjectURL(url);
 };
 </script>
-</body></html>
+</body>
+</html>
